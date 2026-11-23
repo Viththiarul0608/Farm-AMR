@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Farm AMR Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: fleet-manager admin — sidebar; full-width Monitoring & Control map of the farm; tasks + garden beds side by side; events below */
+:root{
+  --bg:#F2F4F1; --panel:#FFFFFF; --ink:#24302A; --muted:#66746B; --line:#DEE4DF; --side-on:#D3E5D6;
+  --btn-dark:#24302A; --btn-dark-ink:#FFFFFF; --goal:#4F7A5C; --focus:#2F8F4E;
+  --st-idle:#7CC4F0; --st-idle-ink:#0D2A3A; --st-nav:#4CAF50; --st-wait:#F08A24; --st-work:#1E88E5; --st-load:#F2B705; --st-load-ink:#2B2100;
+  --st-chg:#7B3FC4; --st-pause:#546E7A; --st-bad:#E53935;
+  --ok:#2E9E4F; --warn:#C77700; --bad:#D32F2F;
+  --bar-water:#1E88E5; --bar-nutr:#8D6E63; --bar-grow:#43A047;
+  /* farm map world — fixed look in both themes */
+  --g-grass:#9CC57A; --g-grass2:#8DBA6A; --g-path:#DCC59C; --g-path-edge:#B99B6B; --g-line:#5A4630; --g-bld:#EFE9DC; --g-bld-edge:#6E5A3F; --g-text:#1F2A1C;
+  --g-glass:#D8ECF6; --g-glass-edge:#7FA7C9; --g-fence:#7A5B36; --g-dry:#C9A57A; --g-wet:#5B3E26; --g-crop:#2E7D32; --g-fruit:#E53935;
+  --n-tr:#B9B9B9; --n-pick:#1F6FD1; --n-work:#22A045; --n-park:#E8C21A; --n-chg:#7B3FC4; --n-store:#F08A24;
+  --amr1:#E8553E; --amr2:#12A39A; --box:#B9824A;
+  --f-ui:"Roboto",system-ui,-apple-system,"Segoe UI",Arial,sans-serif; --f-mono:"Roboto Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101512; --panel:#18201B; --ink:#E2E9E4; --muted:#93A399; --line:#2A352E; --side-on:#25402D;
+  --btn-dark:#3B4C41; --btn-dark-ink:#FFFFFF; --goal:#8FC09D; --focus:#5CC07A;
+  --ok:#43C06A; --warn:#F0A43A; --bad:#EF5350; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101512; --panel:#18201B; --ink:#E2E9E4; --muted:#93A399; --line:#2A352E; --side-on:#25402D;
+  --btn-dark:#3B4C41; --btn-dark-ink:#FFFFFF; --goal:#8FC09D; --focus:#5CC07A;
+  --ok:#43C06A; --warn:#F0A43A; --bad:#EF5350; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--f-ui);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+.app{display:grid;grid-template-columns:210px minmax(0,1fr);gap:16px;max-width:1560px;margin:0 auto;align-items:start}
+.side{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 0;position:sticky;top:calc(16px + env(safe-area-inset-top,0px))}
+.side .brand{display:flex;align-items:center;gap:10px;padding:6px 16px 14px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.side .logo{width:30px;height:30px;border-radius:6px;background:var(--focus);color:#fff;display:grid;place-items:center;font:700 12px var(--f-ui)}
+.side .brand b{display:block;font-size:14px} .side .brand small{color:var(--muted);font-size:12px}
+.side .lbl{padding:8px 16px 4px;color:var(--muted);font-size:12px}
+.side a{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;color:var(--ink);text-decoration:none;font-size:14px}
+.side a:hover{background:color-mix(in srgb,var(--side-on) 50%,transparent)}
+.side a.on{background:var(--side-on);font-weight:500}
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:static;display:flex;overflow-x:auto;padding:0;align-items:center}
+  .side .brand{border:0;margin:0;padding:8px 12px;flex:none} .side .lbl{display:none}
+  .side a{flex:none;padding:12px 14px;white-space:nowrap}
+}
+.main{display:grid;gap:16px;min-width:0}
+.topbar{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center}
+.topbar h1{margin:0;font:500 26px var(--f-ui)}
+.topbar .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+.tb-right{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--ok)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:blink 1.4s infinite}
+.live.off{color:var(--bad)} .live.off i{background:var(--bad);animation:none}
+@keyframes blink{50%{opacity:.25}}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:7px 14px;cursor:pointer;font-weight:500;font-size:13px;letter-spacing:.02em}
+.btn:hover{border-color:var(--muted)}
+.btn.outline{border-color:var(--ink)}
+.btn.primary{background:var(--btn-dark);border-color:var(--btn-dark);color:var(--btn-dark-ink)}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.xs{padding:2px 8px;font-size:12px}
+.btn.bad{color:var(--bad)}
+.btn.armed{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.ctl{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:7px 10px;width:100%}
+.inline{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.inline .ctl{width:auto;padding:5px 8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:0}
+.cardhead{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.cardtitle{display:flex;align-items:center;gap:8px;font-weight:500;font-size:15px}
+.cardtitle svg{color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+@media (max-width:1180px){.grid2{grid-template-columns:minmax(0,1fr)}}
+
+/* monitoring */
+.mc-tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line)}
+.search{position:relative;flex:1 1 180px;min-width:140px;max-width:360px}
+.search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.search input{padding-left:32px}
+.icon-btn{border:0;background:none;width:34px;height:34px;border-radius:6px;display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.icon-btn:hover{background:color-mix(in srgb,var(--muted) 14%,transparent)}
+.icon-btn[aria-pressed="true"],.icon-btn[aria-pressed="true"]:hover{background:var(--btn-dark);color:var(--btn-dark-ink)}
+.maptitle{margin-left:auto;font-weight:500;color:var(--muted);font-size:13px}
+.arow{display:grid;grid-template-columns:minmax(0,1.2fr) 38px minmax(0,1.8fr) auto auto auto;gap:6px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line)}
+.nm{position:relative;min-width:0}
+.caret{border:0;background:none;padding:2px 0;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.arow small{display:block;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu{position:absolute;left:0;top:28px;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.14);display:grid;min-width:180px;padding:4px}
+.menu button{border:0;background:none;text-align:left;padding:8px 10px;cursor:pointer;border-radius:4px}
+.menu button:hover{background:var(--bg)}
+.stcell{min-width:0}
+.pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;background:var(--pc,var(--st-idle));color:var(--pi,#fff)}
+.goal{border:1px solid var(--goal);color:var(--goal);background:var(--panel);border-radius:4px;padding:6px 12px;font-weight:500;cursor:pointer;letter-spacing:.04em}
+.dark{border:0;background:var(--btn-dark);color:var(--btn-dark-ink);border-radius:4px;width:44px;height:32px;display:grid;place-items:center;cursor:pointer}
+.dark:disabled{opacity:.35;cursor:not-allowed}
+.goalbar{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;padding:8px 10px;background:color-mix(in srgb,var(--focus) 8%,var(--panel));border-bottom:1px solid var(--line);font-size:13px}
+.goalbar select{width:auto;max-width:100%;flex:1 1 180px}
+.mapwrap{position:relative;background:var(--g-grass);border-radius:0 0 8px 8px;overflow:hidden;touch-action:pan-y}
+.mapwrap svg{display:block;width:100%;height:auto;cursor:grab}
+.mapwrap svg.goalmode{cursor:crosshair}
+.mapwho{position:absolute;left:8px;top:8px;background:rgba(255,255,255,.88);color:#1B1B1B;border-radius:4px;padding:2px 8px;font-size:12px;max-width:70%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;padding:10px 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:50%;display:inline-block}
+
+/* farm svg */
+.f-grass{fill:var(--g-grass)} .f-grass2{fill:var(--g-grass2)}
+.f-fence{fill:none;stroke:var(--g-fence);stroke-width:3;stroke-dasharray:10 6}
+.f-bld{fill:var(--g-bld);stroke:var(--g-bld-edge);stroke-width:2.5}
+.f-glass{fill:var(--g-glass);stroke:var(--g-glass-edge);stroke-width:2.5}
+.f-glassrib{stroke:var(--g-glass-edge);stroke-width:1;opacity:.6}
+.f-lbl{font:700 12px var(--f-ui);fill:var(--g-text);letter-spacing:.08em;text-anchor:middle}
+.f-sub{font:500 10px var(--f-ui);fill:#4D5A48;text-anchor:middle}
+.f-pad{fill:rgba(255,255,255,.35);stroke:rgba(0,0,0,.25);stroke-dasharray:4 3}
+.f-tank{fill:#90CAF9;stroke:#1565C0;stroke-width:2}
+.f-path-e{stroke:var(--g-path-edge);fill:none;stroke-linecap:round}
+.f-path{stroke:var(--g-path);fill:none;stroke-linecap:round}
+.f-edge{stroke:var(--g-line);stroke-width:1.3;fill:none;opacity:.7}
+.f-arrow{fill:var(--g-line);opacity:.7}
+.bed{cursor:pointer}
+.bed-soil{stroke:#4A3320;stroke-width:2}
+.bed:hover .bed-soil,.bed.sel .bed-soil{stroke:#000;stroke-width:3.5}
+.bed-furrow{stroke:rgba(255,255,255,.35);stroke-width:2;stroke-dasharray:5 5}
+.bed-lbl{font:700 12px var(--f-ui);fill:var(--g-text);paint-order:stroke;stroke:rgba(255,255,255,.85);stroke-width:3px}
+.bed-pct{font:500 11px var(--f-mono);fill:#0D47A1;paint-order:stroke;stroke:rgba(255,255,255,.85);stroke-width:3px;text-anchor:end}
+.crop{fill:var(--g-crop)} .fruit{fill:var(--g-fruit)}
+.nd{cursor:pointer}
+.nd circle.c{stroke:rgba(0,0,0,.3);stroke-width:1.5}
+.nd text.l{font:500 11px var(--f-ui);fill:var(--g-text);text-anchor:middle;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-width:3px;pointer-events:none}
+.nd.tr text.l{font-size:9px;fill:#555}
+.nd:hover circle.c{stroke:#000;stroke-width:3}
+.nd.tgt circle.c{stroke:#000;stroke-width:4}
+.t-tr{fill:var(--n-tr)} .t-pick{fill:var(--n-pick)} .t-work{fill:var(--n-work)} .t-park{fill:var(--n-park)} .t-chg{fill:var(--n-chg)} .t-store{fill:var(--n-store)}
+.glyph{fill:#fff;font:700 11px var(--f-ui);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.hi{fill:none;stroke:#0D47A1;stroke-width:4;animation:hi 1.2s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes hi{from{transform:scale(.8);opacity:1}to{transform:scale(1.8);opacity:0}}
+.route{fill:none;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;opacity:.6}
+.route.a1{stroke:var(--amr1)} .route.a2{stroke:var(--amr2)}
+.rb-body{stroke-width:2.5}
+.a1 .rb-body{fill:color-mix(in srgb,var(--amr1) 55%,#fff);stroke:var(--amr1)}
+.a2 .rb-body{fill:color-mix(in srgb,var(--amr2) 55%,#fff);stroke:var(--amr2)}
+.a1 .rb-nose{fill:var(--amr1)} .a2 .rb-nose{fill:var(--amr2)}
+.rb-wheel{fill:#333}
+.rb-tool{stroke:#2B2B2B;stroke-width:1.5}
+.rb-level{fill:#1E88E5}
+.rb-track{fill:none;stroke:rgba(0,0,0,.18);stroke-width:4} .rb-prog{fill:none;stroke:#1B5E20;stroke-width:4;stroke-linecap:round}
+.rb-hold{fill:none;stroke:#E53935;stroke-width:2.5;stroke-dasharray:5 4}
+.rb-tag rect{fill:rgba(255,255,255,.93);stroke:#8A8A8A} .rb-tag text{font:500 12px var(--f-ui);fill:#1B1B1B;text-anchor:middle;dominant-baseline:central}
+.spray line{stroke-width:3;stroke-linecap:round;stroke-dasharray:2 7;animation:spray .5s linear infinite}
+@keyframes spray{to{stroke-dashoffset:-9}}
+
+/* tasks */
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:11px 8px 9px;cursor:pointer;font-weight:500;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--focus)}
+.count{font:500 11px var(--f-mono);background:var(--line);border-radius:999px;padding:1px 6px;margin-left:4px}
+.pane{padding:14px;display:grid;gap:12px}
+h3{margin:0;font-size:13px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.prio{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.prio.high{border-color:var(--bad);color:var(--bad)}
+.tag{font-size:11px;padding:1px 6px;border-radius:4px;background:color-mix(in srgb,var(--focus) 14%,transparent);color:var(--focus);font-weight:500}
+.rt{font:500 12px var(--f-mono)} .rt .p{color:var(--n-pick)} .rt .w{color:var(--n-work)} .rt .f{color:var(--muted)}
+.run{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:6px;padding:10px 12px;display:grid;gap:8px}
+.run.a1{--c:var(--amr1)} .run.a2{--c:var(--amr2)}
+.rowx{display:flex;flex-wrap:wrap;gap:6px 10px;justify-content:space-between;align-items:center}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.steps div{font-size:11px;color:var(--muted);display:grid;gap:4px}
+.steps div::before{content:"";height:4px;border-radius:2px;background:var(--line)}
+.steps .done::before{background:var(--ok)} .steps .cur{color:var(--ink);font-weight:500} .steps .cur::before{background:var(--focus)}
+.qlist{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.qlist li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:9px 12px;border-top:1px solid var(--line);align-items:center}
+.qlist li:first-child{border-top:0}
+.qtop{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;min-width:0}
+.qlist .acts{grid-row:1/span 2;grid-column:2;display:flex;gap:6px}
+.empty{color:var(--muted);font-size:13px;padding:12px;border:1px dashed var(--line);border-radius:6px}
+form{display:grid;gap:12px}
+.field{display:grid;gap:4px;min-width:0}
+.field>label{font-size:12px;font-weight:500;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:460px){.two{grid-template-columns:1fr}}
+.preview{font-size:12px;color:var(--muted);margin:0}
+.preview b{color:var(--ink);font-weight:500}
+.note{font-size:12px;color:var(--warn);margin:0}
+.err{font-size:12px;color:var(--bad);margin:0;min-height:1em}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle;font-variant-numeric:tabular-nums}
+.hist .tablewrap{border:1px solid var(--line);border-radius:6px}
+.hist table{min-width:780px} .hist td{white-space:nowrap}
+tr.hrow{cursor:pointer} tr.hrow:hover td{background:color-mix(in srgb,var(--focus) 6%,transparent)}
+tr.detail td{background:var(--bg);white-space:normal}
+.tl{list-style:none;margin:0;padding:2px 0;display:grid;gap:2px}
+.tl li{display:grid;grid-template-columns:72px 1fr;gap:8px}
+.tl time,.feed time{font:12px var(--f-mono);color:var(--muted)}
+.hstats{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--muted)}
+.hstats b{color:var(--ink);font:500 14px var(--f-mono)}
+/* beds */
+.beds table{min-width:700px}
+.beds .acts{flex-wrap:nowrap}
+.beds td{padding:7px 8px}
+.beds td.b{font-weight:500;white-space:nowrap}
+.beds td.b small{display:block;color:var(--muted);font-weight:400;font-size:11px}
+.bar{display:flex;align-items:center;gap:6px;min-width:96px}
+.bar b{flex:1;height:7px;border-radius:4px;background:var(--line);overflow:hidden;max-width:80px}
+.bar b i{display:block;height:100%}
+.bar span{font:12px var(--f-mono);min-width:34px}
+.bpill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;color:#fff;background:var(--bc)}
+.auto{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:13px}
+.auto input[type=number]{width:62px;padding:3px 6px}
+.store{padding:10px 14px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.store b{color:var(--ink);font:500 15px var(--f-mono)}
+.feed{list-style:none;margin:0;padding:6px 0;max-height:300px;overflow:auto}
+.feed li{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:4px 14px;font-size:13px}
+.feed .k-ok span{color:var(--ok)} .feed .k-warn span{color:var(--warn)} .feed .k-bad span{color:var(--bad)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){.hi,.live i,.spray line{animation:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="Main menu">
+    <div class="brand"><span class="logo">AGRI</span><div><b>Farm AMR</b><small>Green Valley Farm</small></div></div>
+    <div class="lbl">Main Menu</div>
+    <a href="#dash" class="on">Dashboard</a>
+    <a href="#dash">Monitoring &amp; Control</a>
+    <a href="#tasks">Tasks</a>
+    <a href="#beds">Garden Beds</a>
+    <a href="#events">Event Notifications</a>
+  </nav>
+
+  <div class="main">
+    <div class="topbar" id="dash">
+      <div><h1>Farm Dashboard</h1>
+        <p class="sub">Green Valley Farm · 8 garden beds · AMR 01, AMR 02 · <span id="modeTxt">served by the Python farm server</span></p></div>
+      <div class="tb-right">
+        <span class="live off" id="conn"><i></i><span id="connTxt">CONNECTING…</span></span>
+        <label class="inline" for="speedSel">Sim speed <select id="speedSel" class="ctl"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+        <button class="btn outline" id="resetBtn" type="button">RESET DEMO</button>
+      </div>
+    </div>
+
+    <div class="card" id="mon">
+      <div class="cardhead"><span class="cardtitle"><svg width="20" height="16" viewBox="0 0 24 18" aria-hidden="true"><rect x="1" y="3" width="9" height="12" rx="1.5" fill="currentColor"/><path d="M13 5h10M13 9h10M13 13h10" stroke="currentColor" stroke-width="2"/></svg>Monitoring And Control</span></div>
+      <div class="mc-tools">
+        <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input class="ctl" list="wpl" placeholder="Find waypoint or bed" aria-label="Find waypoint" id="srch"><datalist id="wpl"></datalist></div>
+        <button class="icon-btn" type="button" data-z="in" aria-label="Zoom in"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l5 5M7 10h6M10 7v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <button class="icon-btn" type="button" data-z="out" aria-label="Zoom out"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l5 5M7 10h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <button class="icon-btn" type="button" data-z="fit" aria-label="Fit map"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></button>
+        <span class="maptitle">GVF Farm Map · 24 × 15 m</span>
+      </div>
+      <div id="amrRows"></div>
+      <div class="goalbar" id="goalbar" hidden><span>Send <b id="goalAmr"></b> to</span><select class="ctl" id="goalSel" aria-label="Goal waypoint"></select><button class="btn sm primary" type="button" id="goalGo">GO</button><button class="btn sm" type="button" id="goalClose">Close</button><small style="color:var(--muted)">or tap any point on the map</small></div>
+      <div class="mapwrap"><svg id="map" viewBox="0 0 960 600" role="img" aria-label="Farm map"></svg><span class="mapwho" id="mapwho"></span></div>
+    </div>
+    <div class="card legend">
+      <span><i style="background:var(--n-pick)"></i>Pickup point (tools)</span>
+      <span><i style="background:var(--n-work)"></i>Work point (garden bed)</span>
+      <span><i style="background:var(--n-store)"></i>Harvest store</span>
+      <span><i style="background:var(--n-park)"></i>Parking</span>
+      <span><i style="background:var(--n-chg)"></i>Charging</span>
+      <span><i style="background:var(--n-tr)"></i>Transit</span>
+      <span><i style="background:var(--amr1);border-radius:3px"></i>AMR 01</span>
+      <span><i style="background:var(--amr2);border-radius:3px"></i>AMR 02</span>
+    </div>
+
+    <div class="grid2">
+      <div class="card" id="tasks">
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tb-queue" data-tab="queue" aria-selected="true" type="button">Tasks<span class="count" id="qCount">0</span></button>
+          <button role="tab" id="tb-form" data-tab="form" aria-selected="false" type="button">Create</button>
+          <button role="tab" id="tb-history" data-tab="history" aria-selected="false" type="button">History<span class="count" id="hCount">0</span></button>
+        </div>
+        <div class="pane" id="pane-queue">
+          <h3>Running</h3>
+          <div id="runBox" style="display:grid;gap:8px"></div>
+          <div class="rowx"><h3>Queue</h3><button class="btn sm primary" id="newBtn" type="button">+ New task</button></div>
+          <div id="queueBox"></div>
+        </div>
+        <div class="pane" id="pane-form" hidden>
+          <div class="rowx"><strong id="formTitle" style="font-size:16px;font-weight:500">New farm task</strong><span id="formStatus"></span></div>
+          <form id="taskForm" novalidate>
+            <div class="two">
+              <div class="field"><label for="fType">Task type</label><select class="ctl" id="fType"></select></div>
+              <div class="field"><label for="fAmt" id="fAmtLbl">Amount</label><input class="ctl" id="fAmt" type="number" step="any" inputmode="decimal"></div>
+            </div>
+            <div class="field"><label for="fPick">Pickup point (what the AMR collects)</label><select class="ctl" id="fPick"></select></div>
+            <div class="field"><label for="fWork">Work point (garden bed)</label><select class="ctl" id="fWork"></select></div>
+            <div class="field"><label for="fFin">After the work, go to</label><select class="ctl" id="fFin"></select></div>
+            <p class="preview" id="fPrev"></p>
+            <p class="note" id="lockNote" hidden></p>
+            <div class="two">
+              <div class="field"><label for="fAmr">Assign to</label><select class="ctl" id="fAmr"><option value="auto">Auto (nearest free AMR)</option><option value="AMR 01">AMR 01</option><option value="AMR 02">AMR 02</option></select></div>
+              <div class="field"><label for="fPrio">Priority</label><select class="ctl" id="fPrio"><option value="high">High</option><option value="normal" selected>Normal</option><option value="low">Low</option></select></div>
+            </div>
+            <p class="err" id="formErr" role="alert"></p>
+            <div class="acts"><button class="btn primary" type="submit" id="submitBtn">Create task</button><button class="btn" type="button" id="clearBtn">Clear</button></div>
+            <p class="preview">Tip: tap a blue tool point, then a garden bed on the map, to fill these fields.</p>
+          </form>
+        </div>
+        <div class="pane hist" id="pane-history" hidden>
+          <div class="hstats" id="hStats"></div>
+          <div class="two"><input class="ctl" id="hSearch" placeholder="Search ID, bed, crop or AMR" aria-label="Search history"><select class="ctl" id="hFilter" aria-label="Status"><option value="all">All</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
+          <div class="tablewrap"><table><thead><tr><th>Task</th><th>AMR</th><th>Type</th><th>Work point</th><th>Amount</th><th>Status</th><th>Started</th><th>Finished</th><th>Cycle</th><th>Dist.</th></tr></thead><tbody id="hBody"></tbody></table></div>
+          <p class="preview">Tap a row to see its timeline, including edits.</p>
+        </div>
+      </div>
+
+      <div class="card beds" id="beds">
+        <div class="cardhead"><span class="cardtitle">Garden beds</span>
+          <label class="auto" for="autoOn"><input type="checkbox" id="autoOn"> Auto-water below <input class="ctl" type="number" id="autoTh" min="5" max="80" aria-label="Moisture threshold">% with <input class="ctl" type="number" id="autoL" min="5" max="60" aria-label="Litres"> L</label></div>
+        <div class="tablewrap"><table><thead><tr><th>Bed</th><th>Moisture</th><th>Nutrients</th><th>Growth</th><th>Status</th><th>Quick task</th></tr></thead><tbody id="bedBody"></tbody></table></div>
+        <div class="store" id="storeLine"></div>
+      </div>
+    </div>
+
+    <div class="card" id="events">
+      <div class="cardhead"><span class="cardtitle">Event notifications</span><small style="color:var(--muted)" id="feedCount"></small></div>
+      <ol class="feed" id="feed"></ol>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script src="world.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

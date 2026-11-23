@@ -1,0 +1,1 @@
+# No packages needed: this project uses only the Python standard library (Python 3.9+).
